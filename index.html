@@ -119,8 +119,11 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
-        // Wrap everything inside DOMContentLoaded to ensure the HTML is fully loaded
-        document.addEventListener('DOMContentLoaded', async () => {
+        // Add this line directly after the CDN script, BEFORE DOMContentLoaded
+        console.log('Is Supabase defined globally?', typeof Supabase);
+        document.addEventListener('DOMContentLoaded', async () => { 
+            console.log('DOM Content Loaded!'); 
+            console.log('Type of Supabase inside DOMContentLoaded:', typeof Supabase); // This line should now say 'function'
             // ---------------------------------------------------------------
             // IMPORTANT: REPLACE WITH YOUR ACTUAL SUPABASE URL AND ANON KEY
             // ---------------------------------------------------------------
