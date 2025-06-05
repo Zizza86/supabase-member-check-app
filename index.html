@@ -6,7 +6,7 @@
     <title>Member Status Check</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text x='0' y='14'>✅</text></svg>" type="image/svg+xml">
     <style>
-        /* (Your CSS from before goes here - unchanged) */
+        /* Basic CSS for the layout and mobile responsiveness */
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: #f4f7f6;
@@ -121,11 +121,14 @@
     <script>
         // Add this line directly after the CDN script, BEFORE DOMContentLoaded
         console.log('Is Supabase defined globally?', typeof Supabase);
-        document.addEventListener('DOMContentLoaded', async () => { 
-            console.log('DOM Content Loaded!'); 
-            console.log('Type of Supabase inside DOMContentLoaded:', typeof Supabase); // This line should now say 'function'
+
+        // Wrap all main application logic inside DOMContentLoaded
+        document.addEventListener('DOMContentLoaded', async () => {
+            console.log('DOM Content Loaded!');
+            console.log('Type of Supabase inside DOMContentLoaded:', typeof Supabase); // This should now say 'function'
+
             // ---------------------------------------------------------------
-            // IMPORTANT: REPLACE WITH YOUR ACTUAL SUPABASE URL AND ANON KEY
+            // SUPABASE URL AND ANON KEY (PRE-FILLED)
             // ---------------------------------------------------------------
             const SUPABASE_URL = 'https://jhjihtzjiqwqkaoiyuxu.supabase.co';
             const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpoamlodHpqaXF3cWthb2l5dXh1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg5ODkxNzMsImV4cCI6MjA2NDU2NTE3M30.HiTwsCkcKI4TaJwmbJMtPLOOMkrbDBfV0u2D13_sWlM';
@@ -137,7 +140,10 @@
             // This password should be set as an Environment Variable in Vercel.
             // Variable name: PUBLIC_ACCESS_PASSWORD
             // ---------------------------------------------------------------
-            const ACCESS_PASSWORD = process.env.PUBLIC_ACCESS_PASSWORD || "your_default_local_password";
+            // Vercel injects environment variables set during deployment into the browser.
+            // For local testing, you might need to manually set `process.env.PUBLIC_ACCESS_PASSWORD`
+            // or provide a default if it's not present.
+            const ACCESS_PASSWORD = process.env.PUBLIC_ACCESS_PASSWORD || "your_default_local_password"; 
             // ^^^ Make sure this default is NOT your actual production password if you test locally!
 
             // Get HTML elements
@@ -150,6 +156,7 @@
             const resultDiv = document.getElementById('result');
 
             // --- Event Listeners ---
+            // Attach event listener for the password gate button
             accessButton.addEventListener('click', checkAccessPassword);
             // Allow pressing Enter in password field
             accessPasswordInput.addEventListener('keypress', (event) => {
@@ -158,6 +165,7 @@
                 }
             });
 
+            // Attach event listener for the check member button
             checkButton.addEventListener('click', checkMember);
             // Allow pressing Enter in email field
             emailSearchInput.addEventListener('keypress', (event) => {
@@ -194,6 +202,8 @@
                 }
 
                 try {
+                    // Calling the RPC function. It now returns an array of objects.
+                    // We expect at most one result for a given email, so take the first element.
                     const { data: results, error } = await supabase.rpc('is_member_active', { p_email: emailInput });
 
                     if (error) {
@@ -223,7 +233,9 @@
                         }
                         resultDiv.textContent = message;
                     } else {
-                        resultDiv.textContent = '❌ Member NOT found or no data returned.';
+                        // This case might occur if the function returned an empty array for some reason,
+                        // or if the `member_status` was not correctly set inside the function.
+                        resultDiv.textContent = '❌ Member NOT found or no valid data returned.';
                         resultDiv.className = 'inactive';
                     }
 
