@@ -6,7 +6,7 @@
     <title>Member Status Check</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text x='0' y='14'>✅</text></svg>" type="image/svg+xml">
     <style>
-        /* Basic CSS for the layout and mobile responsiveness */
+        /* (Your CSS from before goes here - unchanged) */
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: #f4f7f6;
@@ -105,109 +105,132 @@
         <div id="passwordGate">
             <h2>Enter Password to Access</h2>
             <input type="password" id="accessPassword" placeholder="Enter password">
-            <button onclick="checkAccessPassword()">Enter</button>
+            <button id="accessButton">Enter</button>
         </div>
 
         <div id="appContent" style="display:none;">
             <h1>Member Status Check</h1>
             <label for="emailSearch">Member Email:</label>
             <input type="email" id="emailSearch" placeholder="Enter member email" required>
-            <button onclick="checkMember()">Check Status</button>
+            <button id="checkButton">Check Status</button>
             <div id="result"></div>
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
-        // ---------------------------------------------------------------
-        // IMPORTANT: REPLACE WITH YOUR ACTUAL SUPABASE URL AND ANON KEY
-        // ---------------------------------------------------------------
-        const SUPABASE_URL = 'YOUR_SUPABASE_URL';
-        const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+        // Wrap everything inside DOMContentLoaded to ensure the HTML is fully loaded
+        document.addEventListener('DOMContentLoaded', async () => {
+            // ---------------------------------------------------------------
+            // IMPORTANT: REPLACE WITH YOUR ACTUAL SUPABASE URL AND ANON KEY
+            // ---------------------------------------------------------------
+            const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+            const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
 
-        const supabase = Supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            const supabase = Supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        // ---------------------------------------------------------------
-        // Simple Client-Side Password Gate (NOT for high security)
-        // This password should be set as an Environment Variable in Vercel.
-        // Variable name: PUBLIC_ACCESS_PASSWORD
-        // ---------------------------------------------------------------
-        // Vercel injects environment variables set during deployment into the browser.
-        // For local testing, you might need to manually set `process.env.PUBLIC_ACCESS_PASSWORD`
-        // or provide a default if it's not present.
-        const ACCESS_PASSWORD = process.env.PUBLIC_ACCESS_PASSWORD || "your_default_local_password"; 
-        // ^^^ Make sure this default is NOT your actual production password if you test locally!
+            // ---------------------------------------------------------------
+            // Simple Client-Side Password Gate (NOT for high security)
+            // This password should be set as an Environment Variable in Vercel.
+            // Variable name: PUBLIC_ACCESS_PASSWORD
+            // ---------------------------------------------------------------
+            const ACCESS_PASSWORD = process.env.PUBLIC_ACCESS_PASSWORD || "your_default_local_password";
+            // ^^^ Make sure this default is NOT your actual production password if you test locally!
 
-        async function checkAccessPassword() {
-            const enteredPassword = document.getElementById('accessPassword').value;
-            if (enteredPassword === ACCESS_PASSWORD) {
-                document.getElementById('passwordGate').style.display = 'none';
-                document.getElementById('appContent').style.display = 'block';
-                document.getElementById('result').style.display = 'block'; // Ensure result div is visible after login
-                document.getElementById('emailSearch').focus(); // Focus on email input for convenience
-            } else {
-                alert('Incorrect password. Please try again.');
-                document.getElementById('accessPassword').value = ''; // Clear input
-                document.getElementById('accessPassword').focus(); // Refocus for retry
-            }
-        }
-        // ---------------------------------------------------------------
-
-
-        async function checkMember() {
-            const emailInput = document.getElementById('emailSearch').value.trim();
+            // Get HTML elements
+            const passwordGate = document.getElementById('passwordGate');
+            const accessPasswordInput = document.getElementById('accessPassword');
+            const accessButton = document.getElementById('accessButton');
+            const appContent = document.getElementById('appContent');
+            const emailSearchInput = document.getElementById('emailSearch');
+            const checkButton = document.getElementById('checkButton');
             const resultDiv = document.getElementById('result');
-            resultDiv.className = 'loading'; // Add loading style
-            resultDiv.textContent = 'Checking...';
 
-            if (!emailInput) {
-                resultDiv.textContent = 'Please enter an email.';
-                resultDiv.className = 'inactive';
-                return;
+            // --- Event Listeners ---
+            accessButton.addEventListener('click', checkAccessPassword);
+            // Allow pressing Enter in password field
+            accessPasswordInput.addEventListener('keypress', (event) => {
+                if (event.key === 'Enter') {
+                    checkAccessPassword();
+                }
+            });
+
+            checkButton.addEventListener('click', checkMember);
+            // Allow pressing Enter in email field
+            emailSearchInput.addEventListener('keypress', (event) => {
+                if (event.key === 'Enter') {
+                    checkMember();
+                }
+            });
+
+
+            // --- Functions ---
+            async function checkAccessPassword() {
+                const enteredPassword = accessPasswordInput.value;
+                if (enteredPassword === ACCESS_PASSWORD) {
+                    passwordGate.style.display = 'none';
+                    appContent.style.display = 'block';
+                    resultDiv.style.display = 'block'; // Ensure result div is visible after login
+                    emailSearchInput.focus(); // Focus on email input for convenience
+                } else {
+                    alert('Incorrect password. Please try again.');
+                    accessPasswordInput.value = ''; // Clear input
+                    accessPasswordInput.focus(); // Refocus for retry
+                }
             }
 
-            try {
-                // Calling the RPC function. It now returns an array of objects.
-                // We expect at most one result for a given email, so take the first element.
-                const { data: results, error } = await supabase.rpc('is_member_active', { p_email: emailInput });
+            async function checkMember() {
+                const emailInput = emailSearchInput.value.trim();
+                resultDiv.className = 'loading'; // Add loading style
+                resultDiv.textContent = 'Checking...';
 
-                if (error) {
-                    console.error('Supabase RPC Error:', error);
-                    resultDiv.textContent = 'An error occurred. Please try again.';
-                    resultDiv.className = 'error';
+                if (!emailInput) {
+                    resultDiv.textContent = 'Please enter an email.';
+                    resultDiv.className = 'inactive';
                     return;
                 }
 
-                const memberData = results && results.length > 0 ? results[0] : null;
+                try {
+                    const { data: results, error } = await supabase.rpc('is_member_active', { p_email: emailInput });
 
-                if (memberData) {
-                    let message = `Status: ${memberData.member_status.toUpperCase()}`;
-                    if (memberData.member_status === 'active') {
-                        if (memberData.days_remaining > 0) {
-                            message += ` (Expires in ${memberData.days_remaining} days)`;
-                        } else if (memberData.days_remaining === 0) {
-                            message += ` (Expires today!)`;
+                    if (error) {
+                        console.error('Supabase RPC Error:', error);
+                        resultDiv.textContent = 'An error occurred. Please try again.';
+                        resultDiv.className = 'error';
+                        return;
+                    }
+
+                    const memberData = results && results.length > 0 ? results[0] : null;
+
+                    if (memberData) {
+                        let message = `Status: ${memberData.member_status.toUpperCase()}`;
+                        if (memberData.member_status === 'active') {
+                            if (memberData.days_remaining > 0) {
+                                message += ` (Expires in ${memberData.days_remaining} days)`;
+                            } else if (memberData.days_remaining === 0) {
+                                message += ` (Expires today!)`;
+                            }
+                            resultDiv.className = 'active';
+                        } else if (memberData.member_status === 'expired') {
+                            message += ` (Expired)`;
+                            resultDiv.className = 'inactive';
+                        } else if (memberData.member_status === 'not_found') {
+                            message = '❌ Member NOT found.';
+                            resultDiv.className = 'inactive';
                         }
-                        resultDiv.className = 'active';
-                    } else if (memberData.member_status === 'expired') {
-                        message += ` (Expired)`;
-                        resultDiv.className = 'inactive';
-                    } else if (memberData.member_status === 'not_found') { // Should ideally not happen if query is correct
-                        message = '❌ Member NOT found.';
+                        resultDiv.textContent = message;
+                    } else {
+                        resultDiv.textContent = '❌ Member NOT found or no data returned.';
                         resultDiv.className = 'inactive';
                     }
-                    resultDiv.textContent = message;
-                } else {
-                    resultDiv.textContent = '❌ Member NOT found or no data returned.';
-                    resultDiv.className = 'inactive';
-                }
 
-            } catch (e) {
-                console.error('Network or unexpected error:', e);
-                resultDiv.textContent = 'Network error. Check your internet connection.';
-                resultDiv.className = 'error';
+                } catch (e) {
+                    console.error('Network or unexpected error:', e);
+                    resultDiv.textContent = 'Network error. Check your internet connection.';
+                    resultDiv.className = 'error';
+                }
             }
-        }
+        }); // End of DOMContentLoaded listener
     </script>
 </body>
 </html>
