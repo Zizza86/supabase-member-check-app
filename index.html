@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Member Status Check</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text x='0' y='14'>✅</text></svg>" type="image/svg+xml">
+    <style>
+        /* Basic CSS for the layout and mobile responsiveness */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start; /* Align to top */
+            min-height: 100vh;
+        }
+        .container {
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 450px;
+            box-sizing: border-box; /* Include padding in width */
+        }
+        h1, h2 {
+            text-align: center;
+            color: #007bff;
+            margin-bottom: 25px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #555;
+        }
+        input[type="email"], input[type="password"] {
+            width: calc(100% - 24px); /* Account for padding and border */
+            padding: 12px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 1em;
+            box-sizing: border-box; /* Include padding in width */
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #result {
+            margin-top: 25px;
+            padding: 15px;
+            border-radius: 8px;
+            font-weight: bold;
+            text-align: center;
+            font-size: 1.2em;
+            display: none; /* Hidden by default until password is entered or a check is made */
+        }
+        .active {
+            background-color: #e6ffe6;
+            color: #28a745; /* Green */
+            border: 1px solid #28a745;
+        }
+        .inactive {
+            background-color: #ffe6e6;
+            color: #dc3545; /* Red */
+            border: 1px solid #dc3545;
+        }
+        .loading {
+            background-color: #fff3cd;
+            color: #ffc107; /* Yellow */
+            border: 1px solid #ffc107;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #dc3545;
+            border: 1px solid #dc3545;
+        }
+
+        /* Password Gate Specific Styles */
+        #passwordGate {
+            text-align: center;
+        }
+        #passwordGate button {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="passwordGate">
+            <h2>Enter Password to Access</h2>
+            <input type="password" id="accessPassword" placeholder="Enter password">
+            <button onclick="checkAccessPassword()">Enter</button>
+        </div>
+
+        <div id="appContent" style="display:none;">
+            <h1>Member Status Check</h1>
+            <label for="emailSearch">Member Email:</label>
+            <input type="email" id="emailSearch" placeholder="Enter member email" required>
+            <button onclick="checkMember()">Check Status</button>
+            <div id="result"></div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        // ---------------------------------------------------------------
+        // IMPORTANT: REPLACE WITH YOUR ACTUAL SUPABASE URL AND ANON KEY
+        // ---------------------------------------------------------------
+        const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+        const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+
+        const supabase = Supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // ---------------------------------------------------------------
+        // Simple Client-Side Password Gate (NOT for high security)
+        // This password should be set as an Environment Variable in Vercel.
+        // Variable name: PUBLIC_ACCESS_PASSWORD
+        // ---------------------------------------------------------------
+        // Vercel injects environment variables set during deployment into the browser.
+        // For local testing, you might need to manually set `process.env.PUBLIC_ACCESS_PASSWORD`
+        // or provide a default if it's not present.
+        const ACCESS_PASSWORD = process.env.PUBLIC_ACCESS_PASSWORD || "your_default_local_password"; 
+        // ^^^ Make sure this default is NOT your actual production password if you test locally!
+
+        async function checkAccessPassword() {
+            const enteredPassword = document.getElementById('accessPassword').value;
+            if (enteredPassword === ACCESS_PASSWORD) {
+                document.getElementById('passwordGate').style.display = 'none';
+                document.getElementById('appContent').style.display = 'block';
+                document.getElementById('result').style.display = 'block'; // Ensure result div is visible after login
+                document.getElementById('emailSearch').focus(); // Focus on email input for convenience
+            } else {
+                alert('Incorrect password. Please try again.');
+                document.getElementById('accessPassword').value = ''; // Clear input
+                document.getElementById('accessPassword').focus(); // Refocus for retry
+            }
+        }
+        // ---------------------------------------------------------------
+
+
+        async function checkMember() {
+            const emailInput = document.getElementById('emailSearch').value.trim();
+            const resultDiv = document.getElementById('result');
+            resultDiv.className = 'loading'; // Add loading style
+            resultDiv.textContent = 'Checking...';
+
+            if (!emailInput) {
+                resultDiv.textContent = 'Please enter an email.';
+                resultDiv.className = 'inactive';
+                return;
+            }
+
+            try {
+                // Calling the RPC function. It now returns an array of objects.
+                // We expect at most one result for a given email, so take the first element.
+                const { data: results, error } = await supabase.rpc('is_member_active', { p_email: emailInput });
+
+                if (error) {
+                    console.error('Supabase RPC Error:', error);
+                    resultDiv.textContent = 'An error occurred. Please try again.';
+                    resultDiv.className = 'error';
+                    return;
+                }
+
+                const memberData = results && results.length > 0 ? results[0] : null;
+
+                if (memberData) {
+                    let message = `Status: ${memberData.member_status.toUpperCase()}`;
+                    if (memberData.member_status === 'active') {
+                        if (memberData.days_remaining > 0) {
+                            message += ` (Expires in ${memberData.days_remaining} days)`;
+                        } else if (memberData.days_remaining === 0) {
+                            message += ` (Expires today!)`;
+                        }
+                        resultDiv.className = 'active';
+                    } else if (memberData.member_status === 'expired') {
+                        message += ` (Expired)`;
+                        resultDiv.className = 'inactive';
+                    } else if (memberData.member_status === 'not_found') { // Should ideally not happen if query is correct
+                        message = '❌ Member NOT found.';
+                        resultDiv.className = 'inactive';
+                    }
+                    resultDiv.textContent = message;
+                } else {
+                    resultDiv.textContent = '❌ Member NOT found or no data returned.';
+                    resultDiv.className = 'inactive';
+                }
+
+            } catch (e) {
+                console.error('Network or unexpected error:', e);
+                resultDiv.textContent = 'Network error. Check your internet connection.';
+                resultDiv.className = 'error';
+            }
+        }
+    </script>
+</body>
+</html>
